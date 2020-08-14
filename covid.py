@@ -76,6 +76,22 @@ class StateCovid:
     def get_case_data(self):
         return self.data.items()
 
+    def max_death_rate_by_month(self):
+        max_val = -99999999
+        for key, dat in self.data.items():
+            if dat.deaths > max_val:
+                max_val = dat.deaths
+        
+        return round(dat.deaths/dat.cases, 4)
+
+    def max_case_rate_by_month(self):
+        max_val = -99999999
+        for key, dat in self.data.items():
+            if dat.cases > max_val:
+                max_val = dat.cases
+        
+        return round(dat.cases/self.population, 4)
+
 
 class StateCovidData:
     def __init__(self, data_file_name: str):
@@ -118,7 +134,7 @@ class StateCovidData:
                      "public/data/covid-19/covid_deaths_usafacts.csv"
         self._get_covid_data("deaths.csv", deaths_url, False)
 
-        for state in self.data.items():
+        for state, data in self.data.items():
             self.data[state].set_population(population[state])
 
         self._write_object_data_to_file(data_file_name)
@@ -245,6 +261,18 @@ class StateCovidData:
             file_stuff = original_file.read()
 
         return file_stuff
+    
+    def _get_max_death_rate(self):
+        rates = []
+        for key, obj in self.data.items():
+            rates.append((key, obj.max_death_rate_by_month()))
+        return rates
+
+    def _get_max_case_rate(self):
+        rates = []
+        for key, obj in self.data.items():
+            rates.append((key, obj.max_case_rate_by_month()))
+        return rates
 
 
 def setup_logging():
@@ -274,7 +302,10 @@ def main():
 
     logging.debug("Create Data class.")
     covid_data = StateCovidData(file_name)
-
+    maxs = covid_data._get_max_death_rate()
+    print(maxs)
+    maxs = covid_data._get_max_case_rate()
+    print(maxs)
 
 if __name__ == '__main__':
     main()
