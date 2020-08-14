@@ -267,12 +267,26 @@ class StateCovidData:
         for key, obj in self.data.items():
             rates.append((key, obj.max_death_rate_by_month()))
         return rates
-
+    
     def _get_max_case_rate(self):
         rates = []
         for key, obj in self.data.items():
             rates.append((key, obj.max_case_rate_by_month()))
         return rates
+
+    def get_max_rates(self):
+        rates = []
+        for key, obj in self.data.items():
+            case_rate = obj.max_case_rate_by_month()
+            death_rate = obj.max_death_rate_by_month()
+            rates.append([key, obj.population, case_rate, death_rate])
+        return rates
+    
+    def sort_by_state(self):
+        self.data.sort(key=lambda d: (d.state, d.population))
+
+    def sort_by_population(self):
+        self.data.sort(key=lambda d: (d.population, d.state))
 
 
 def setup_logging():
@@ -294,6 +308,13 @@ def setup_logging():
 
     return None
 
+def plot_data(x: list, y: list):
+    logging.debug(f"Plotting data.")
+    import matplotlib.pyplot as plt
+    plt.scatter(x, y)
+    plt.xticks(rotation=80)
+    plt.show()
+
 
 def main():
     setup_logging()
@@ -302,10 +323,17 @@ def main():
 
     logging.debug("Create Data class.")
     covid_data = StateCovidData(file_name)
-    maxs = covid_data._get_max_death_rate()
-    print(maxs)
-    maxs = covid_data._get_max_case_rate()
-    print(maxs)
+    
+    # sorted_data = covid_data.sort_by_population()
+
+    data_rates = covid_data.get_max_rates()
+
+    df = pd.DataFrame(data_rates, columns=["state", "population", "case_rate", "death_rate"])
+    df = df.sort_values(by="population")
+
+    plot_data(df["state"], df["case_rate"])
+
+    plot_data(df["state"], df["death_rate"])
 
 if __name__ == '__main__':
     main()
