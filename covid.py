@@ -15,6 +15,7 @@ Period_Data = namedtuple("Period_Data", ["cases", "deaths"])
 class StateCovid:
     def __init__(self, state: str):
         self.state = str(state)
+        self.median_age = 0
         self.population = 0
         self.data = dict()
 
@@ -23,11 +24,11 @@ class StateCovid:
         Returns a string representaion of an instantiation of StateCovid
         """
         return (f"StateCovid('{self.state}','{self.population}'," +
-                f"{self.data})")
+                f"{self.median_age},{self.data})")
 
     def __str__(self) -> str:
         return (f"State: {self.state}, Population: {self.population}, " +
-                f"Data: {self.data}")
+                f"Median Age: {self.median_age}, Data: {self.data}")
 
     def __iter__(self):
         """
@@ -35,6 +36,7 @@ class StateCovid:
         """
         yield self.state
         yield self.population
+        yield self.median_age
         yield self.data.items()
 
     def add_cases(self, period: int, number_of_cases: int):
@@ -72,6 +74,12 @@ class StateCovid:
 
     def get_population(self):
         return self.population
+
+    def set_median_age(self, median_age):
+        self.median_age = median_age
+
+    def get_median_age(self):
+        return self.median_age
 
     def get_case_data(self):
         return self.data.items()
@@ -125,6 +133,7 @@ class StateCovidData:
     def _create_data_files(self, data_file_name: str):
         logging.debug("Getting population data")
         population = self._get_populations("population.csv")
+        median_age = self._get_median_age("state_median_age.csv")
 
         caser_url = "https://usafactsstatic.blob.core.windows.net/" + \
                     "public/data/covid-19/covid_confirmed_usafacts.csv"
@@ -136,17 +145,19 @@ class StateCovidData:
 
         for state, data in self.data.items():
             self.data[state].set_population(population[state])
+            self.data[state].set_median_age(median_age[state])
 
         self._write_object_data_to_file(data_file_name)
 
     def _write_object_data_to_file(self, file_name):
         with open(file_name, "w") as data_file:
-            csv_columns = ["State", "Population", "Period", "Cases", "Deaths"]
+            csv_columns = ["State", "Population", "Median Age", "Period", "Cases", "Deaths"]
             writer = csv.DictWriter(data_file, fieldnames=csv_columns)
 
             for state, sdata in self.data.items():
                 st = state
                 pop = sdata.get_population()
+                median_age = sdata.get_median_age()
                 case_data = sdata.get_case_data()
                 for k in case_data:
                     period = k[0]
@@ -154,19 +165,21 @@ class StateCovidData:
                     deaths = k[1].deaths
 
                     row_data = {"State": st, "Population": pop,
+                                "Median Age": median_age,
                                 "Period": period, "Cases": cases,
                                 "Deaths": deaths}
                     writer.writerow(row_data)
 
     def _get_data_from_file(self, file_name):
         with open(file_name, "r") as data_file:
-            csv_columns = ["State", "Population", "Period", "Cases", "Deaths"]
+            csv_columns = ["State", "Population", "Median Age", "Period", "Cases", "Deaths"]
             reader = csv.DictReader(data_file, fieldnames=csv_columns)
 
             for r in reader:
                 if r["State"] not in self.data:
                     self.data[r["State"]] = StateCovid(r["State"])
                     self.data[r["State"]].set_population(int(r["Population"]))
+                    self.data[r["State"]].set_median_age(float(r["Median Age"]))
 
                 self.data[r["State"]].add_cases(r["Period"], int(r["Cases"]))
                 self.data[r["State"]].add_deaths(r["Period"], int(r["Deaths"]))
@@ -230,6 +243,20 @@ class StateCovidData:
                 state_totals[p["State"]] = int(p["population"])
 
         return state_totals
+    
+    def _get_median_age(self, age_file_name):
+        if not os.path.exists(age_file_name):
+            raise FileNotFoundError
+
+        state_median = defaultdict()
+
+        with open(age_file_name, "r") as data_file:
+            reader = csv.DictReader(data_file)
+
+            for p in reader:
+                state_median[p['\ufeffState']] = p["Median"]
+
+        return state_median
 
     def _get_web_data(self, data_url, file_name: str):
         logging.debug("Getting data from remote.")
@@ -238,8 +265,8 @@ class StateCovidData:
         response = requests.get(file_address)
 
         if not response:
-            logging.debug("Using alternate data source.")
-            response = requests.get(alternate_file_address)
+            logging.critical("Data source not responding")
+            raise FileNotFoundError
 
         if response:
             logging.debug(f"Writing data to {file_name}.")
@@ -279,7 +306,7 @@ class StateCovidData:
         for key, obj in self.data.items():
             case_rate = obj.max_case_rate_by_month()
             death_rate = obj.max_death_rate_by_month()
-            rates.append([key, obj.population, case_rate, death_rate])
+            rates.append([key, obj.population, obj.median_age, case_rate, death_rate])
         return rates
     
     def sort_by_state(self):
@@ -322,14 +349,23 @@ def main():
     file_name = "covid_data.csv"
 
     logging.debug("Create Data class.")
+
+    # Argparse:
+    # Plot cases
+    # Plot deaths
+    # sort by population
+    # sort by case rate
+    # sort by death rate
+
+
     covid_data = StateCovidData(file_name)
     
     # sorted_data = covid_data.sort_by_population()
 
     data_rates = covid_data.get_max_rates()
 
-    df = pd.DataFrame(data_rates, columns=["state", "population", "case_rate", "death_rate"])
-    df = df.sort_values(by="population")
+    df = pd.DataFrame(data_rates, columns=["state", "population", "median_age", "case_rate", "death_rate"])
+    df = df.sort_values(by="median_age")
 
     plot_data(df["state"], df["case_rate"])
 
