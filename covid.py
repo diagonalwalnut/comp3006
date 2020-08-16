@@ -3,6 +3,7 @@ import os
 import requests
 import argparse
 import logging
+import calendar
 import numpy as np
 import pandas as pd
 from datetime import timedelta, date
@@ -89,7 +90,7 @@ class StateCovid:
         for key, dat in self.data.items():
             if dat.deaths > max_val:
                 max_val = dat.deaths
-        
+
         return round(dat.deaths/dat.cases, 4)
 
     def max_case_rate_by_month(self):
@@ -97,13 +98,13 @@ class StateCovid:
         for key, dat in self.data.items():
             if dat.cases > max_val:
                 max_val = dat.cases
-        
+
         return round(dat.cases/self.population, 4)
 
 
 class StateCovidData:
     def __init__(self, data_file_name: str):
-        self.data = defaultdict()
+        self.data = dict()
 
         self._load_data(data_file_name)
 
@@ -289,16 +290,16 @@ class StateCovidData:
 
         return file_stuff
     
-    def _get_max_death_rate(self):
+    def get_max_death_rate(self):
         rates = []
         for key, obj in self.data.items():
-            rates.append((key, obj.max_death_rate_by_month()))
+            rates.append((key, obj.population, obj.median_age, obj.max_death_rate_by_month()))
         return rates
     
-    def _get_max_case_rate(self):
+    def get_max_case_rate(self):
         rates = []
         for key, obj in self.data.items():
-            rates.append((key, obj.max_case_rate_by_month()))
+            rates.append((key, obj.population, obj.median_age, obj.max_case_rate_by_month()))
         return rates
 
     def get_max_rates(self):
@@ -310,10 +311,33 @@ class StateCovidData:
         return rates
     
     def sort_by_state(self):
-        self.data.sort(key=lambda d: (d.state, d.population))
+        sorted(self.data.items(), key=lambda d: (d.state, d.population))
 
     def sort_by_population(self):
-        self.data.sort(key=lambda d: (d.population, d.state))
+        sorted(self.data.values(), key=lambda d: (d.population, d.state))
+    
+    def sort_by_median_age(self):
+        sorted(self.data.items(), key=lambda d: (d.median_age, d.state))
+
+    def get_state_data(self, state: str):
+        return self.data[state]
+
+
+def write_to_file(covid_data_df, outfile):
+    headers = covid_data_df.columns.values
+    if outfile is None:
+        import sys
+        writer = csv.writer(sys.stdout)
+        writer.writerow(headers)
+        for index, row in covid_data_df.iterrows():
+            writer.writerow(row)
+    else:
+        logging.debug(f"Writing data to {outfile}.")
+        with open(outfile, "w") as outfile:
+            writer = csv.writer(outfile)
+            writer.writerow(headers)
+            for index, row in covid_data_df.iterrows():
+                writer.writerow(row)
 
 
 def setup_logging():
@@ -328,12 +352,63 @@ def setup_logging():
     sh.setFormatter(formatter)
     logger.addHandler(sh)
 
-    fh = logging.FileHandler("covid_log.log", mode="w")
+    fh = logging.FileHandler("covid.log", mode="w")
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
     return None
+
+
+def print_data(covid_data, sort_order, outfile):
+    logging.debug(f"Sorting data by {sort_order}.")
+    if sort_order == "state":
+        covid_data.sort_by_state()
+    elif sort_order == "age":
+        covid_data.sort_by_median_age()
+    else:
+        covid_data.sort_by_population()
+
+    write_to_file(covid_data, outfile)
+
+
+def covid_cases(covid_data, sort_order, plot, outfile):
+    data_rates = covid_data.get_max_case_rate()
+
+    df = pd.DataFrame(data_rates, columns=["state", "population", "median_age", "case_rate"])
+    df = df.sort_values(by=sort_order)
+    write_to_file(df, outfile)
+
+    if plot:
+        plot_data(df["state"], df["case_rate"])
+
+
+def covid_deaths(covid_data, sort_order, plot, outfile):
+    death_rates = covid_data.get_max_death_rate()
+
+    df = pd.DataFrame(death_rates, columns=["state", "population", "median_age", "death_rate"])
+    df = df.sort_values(by=sort_order)
+    write_to_file(df, outfile)
+
+    if plot:
+        plot_data(df["state"], df["death_rate"])
+
+
+def state_data(covid_data, state, outfile):
+    state_data = covid_data.get_state_data(state)
+
+    headers = f"{state_data.state}, population: {state_data.population}, median age: {state_data.median_age}\n"
+
+    if outfile is None:
+        print(headers)
+        for key, value in state_data.data.items():
+            print(f"{calendar.month_abbr[int(key)]} - cases: {value.cases}, deaths: {value.deaths}")
+    else:
+        with open(outfile, "w") as output:
+            output.write(headers)
+            for key, value in state_data.data.items():
+                output.write(f"{calendar.month_abbr[int(key)]} - cases: {value.cases}, deaths: {value.deaths}\n")
+
 
 def plot_data(x: list, y: list):
     logging.debug(f"Plotting data.")
@@ -350,26 +425,73 @@ def main():
 
     logging.debug("Create Data class.")
 
-    # Argparse:
-    # Plot cases
-    # Plot deaths
-    # sort by population
-    # sort by case rate
-    # sort by death rate
+    parser = argparse.ArgumentParser(
+        description="Parse command line arguments")
 
+    parser.add_argument("command", metavar="<command>",
+                        type=str,
+                        choices=["print", "cases", "deaths", "state"],
+                        help="Command to print")
 
-    covid_data = StateCovidData(file_name)
+    parser.add_argument("-l", "--location", dest="state",
+                        type=str, help="")
+
+    parser.add_argument("-s", "--sort", dest="sort_order",
+                        type=str,
+                        choices=["population", "median_age"],
+                        default="population",
+                        help="")
+
+    parser.add_argument("-f", "--file_name", dest="file_name",
+                        type=str,
+                        help="File name for data file",
+                        default="covid.data.txt")
+
+    parser.add_argument("-o", "--ofile", dest="outfile",
+                        type=str, default=None,
+                        help="The file to which output should be written")
+
+    parser.add_argument("-p", "--plot", dest="plot",
+                        action="store_true", default=False,
+                        help="Display a matplotlib plot")
+
+    args = parser.parse_args()
+
+    command_param = args.command
+    sort_order = args.sort_order
+    file_name = args.file_name
+    plot = args.plot
+    outfile = args.outfile
+    state = args.state
+
+    logging.debug(f"Arg command_param = {command_param}")
+    logging.debug(f"Arg sort_order = {sort_order}")
+    logging.debug(f"Arg file_name = {file_name}")
+    logging.debug(f"Arg plot = {plot}")
+    logging.debug(f"Arg outfile = {outfile}")
+    logging.debug(f"Arg state = {state}")
+
+    covid_data = StateCovidData(file_name)    
+
+    if command_param == "print":
+        if sort_order == "population":
+            covid_data.sort_by_population()
+        else:
+            covid_data.sort_by_median_age()
+        print_data(covid_data, sort_order, outfile)
+        return None
+
+    if command_param == "cases":
+        covid_cases(covid_data, sort_order, plot, outfile)
+        return None
+
+    if command_param == "deaths":
+        covid_deaths(covid_data, sort_order, plot, outfile)
+        return None
     
-    # sorted_data = covid_data.sort_by_population()
-
-    data_rates = covid_data.get_max_rates()
-
-    df = pd.DataFrame(data_rates, columns=["state", "population", "median_age", "case_rate", "death_rate"])
-    df = df.sort_values(by="median_age")
-
-    plot_data(df["state"], df["case_rate"])
-
-    plot_data(df["state"], df["death_rate"])
+    if command_param == "state":
+        state_data(covid_data, state, outfile)
+        return None
 
 if __name__ == '__main__':
     main()
