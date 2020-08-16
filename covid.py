@@ -1,5 +1,6 @@
 import csv
 import os
+import sys
 import requests
 import argparse
 import logging
@@ -7,7 +8,6 @@ import calendar
 import numpy as np
 import pandas as pd
 from datetime import timedelta, date
-from calendar import monthrange
 from collections import namedtuple, defaultdict
 
 
@@ -71,7 +71,7 @@ class StateCovid:
             if dat > max_val:
                 max_val = dat
 
-        return dat
+        return round(dat/(self.population/1000000), 5)
 
 
 class StateCovidData:
@@ -86,7 +86,7 @@ class StateCovidData:
             yield start_date + timedelta(n)
 
     def _format_date_key(self, month: int):
-        return str(month) + "/" + str(monthrange(2020, month)[1]) + \
+        return str(month) + "/" + str(calendar.monthrange(2020, month)[1]) + \
                 "/" + str(20)
 
     def _load_data(self, data_file_name: str):
@@ -343,7 +343,7 @@ def plot_data(x: list, y: list):
     logging.debug(f"Plotting data.")
     import matplotlib.pyplot as plt
     plt.scatter(x, y)
-    plt.xticks(rotation=80)
+    plt.xticks(rotation=90)
     plt.show()
 
 
