@@ -10,8 +10,6 @@ from datetime import timedelta, date
 from calendar import monthrange
 from collections import namedtuple, defaultdict
 
-Period_Data = namedtuple("Period_Data", ["cases", "deaths"])
-
 
 class StateCovid:
     def __init__(self, state: str):
@@ -40,35 +38,17 @@ class StateCovid:
         yield self.median_age
         yield self.data.items()
 
-    def add_cases(self, period: int, number_of_cases: int):
-        if period not in self.data.keys():
-            self.data[period] = Period_Data(number_of_cases, 0)
-            return None
-
-        p_data = self.data[period].cases
-        period_data = Period_Data(p_data + number_of_cases,
-                                  self.data[period].deaths)
-        self.data[period] = period_data
-        return None
-
     def add_deaths(self, period: int, number_of_deaths: int):
         if period not in self.data.keys():
-            self.data[period] = Period_Data(0, number_of_deaths)
+            self.data[period] = number_of_deaths
             return None
 
-        p_data = self.data[period].deaths
+        p_data = self.data[period]
 
-        period_data = Period_Data(self.data[period].cases,
-                                  p_data + number_of_deaths)
+        period_data = p_data + number_of_deaths
 
         self.data[period] = period_data
         return None
-
-    def get_cases_for_month(self, month: int):
-        month_data = dict(filter(lambda k: k[0] == month,
-                          self.data.items()))
-
-        return month_data[month].cases
 
     def set_population(self, population):
         self.population = population
@@ -82,24 +62,16 @@ class StateCovid:
     def get_median_age(self):
         return self.median_age
 
-    def get_case_data(self):
+    def get_death_data(self):
         return self.data.items()
 
     def max_death_rate_by_month(self):
         max_val = -99999999
         for key, dat in self.data.items():
-            if dat.deaths > max_val:
-                max_val = dat.deaths
+            if dat > max_val:
+                max_val = dat
 
-        return round(dat.deaths/dat.cases, 4)
-
-    def max_case_rate_by_month(self):
-        max_val = -99999999
-        for key, dat in self.data.items():
-            if dat.cases > max_val:
-                max_val = dat.cases
-
-        return round(dat.cases/self.population, 4)
+        return dat
 
 
 class StateCovidData:
@@ -112,9 +84,6 @@ class StateCovidData:
     def _daterange(self, start_date, end_date):
         for n in range(int((end_date - start_date).days)):
             yield start_date + timedelta(n)
-
-    def _parse_cases_data(self, file_name):
-        pass
 
     def _format_date_key(self, month: int):
         return str(month) + "/" + str(monthrange(2020, month)[1]) + \
@@ -136,13 +105,9 @@ class StateCovidData:
         population = self._get_populations("population.csv")
         median_age = self._get_median_age("state_median_age.csv")
 
-        caser_url = "https://usafactsstatic.blob.core.windows.net/" + \
-                    "public/data/covid-19/covid_confirmed_usafacts.csv"
-        self._get_covid_data("cases.csv", caser_url, True)
-
         deaths_url = "https://usafactsstatic.blob.core.windows.net/" + \
                      "public/data/covid-19/covid_deaths_usafacts.csv"
-        self._get_covid_data("deaths.csv", deaths_url, False)
+        self._get_covid_data("deaths.csv", deaths_url)
 
         for state, data in self.data.items():
             self.data[state].set_population(population[state])
@@ -152,28 +117,26 @@ class StateCovidData:
 
     def _write_object_data_to_file(self, file_name):
         with open(file_name, "w") as data_file:
-            csv_columns = ["State", "Population", "Median Age", "Period", "Cases", "Deaths"]
+            csv_columns = ["State", "Population", "Median Age", "Period", "Deaths"]
             writer = csv.DictWriter(data_file, fieldnames=csv_columns)
 
             for state, sdata in self.data.items():
                 st = state
                 pop = sdata.get_population()
                 median_age = sdata.get_median_age()
-                case_data = sdata.get_case_data()
-                for k in case_data:
-                    period = k[0]
-                    cases = k[1].cases
-                    deaths = k[1].deaths
+                death_data = sdata.get_death_data()
+                for key, value in death_data:
+                    period = key
+                    deaths = value
 
                     row_data = {"State": st, "Population": pop,
                                 "Median Age": median_age,
-                                "Period": period, "Cases": cases,
-                                "Deaths": deaths}
+                                "Period": period, "Deaths": deaths}
                     writer.writerow(row_data)
 
     def _get_data_from_file(self, file_name):
         with open(file_name, "r") as data_file:
-            csv_columns = ["State", "Population", "Median Age", "Period", "Cases", "Deaths"]
+            csv_columns = ["State", "Population", "Median Age", "Period", "Deaths"]
             reader = csv.DictReader(data_file, fieldnames=csv_columns)
 
             for r in reader:
@@ -182,16 +145,9 @@ class StateCovidData:
                     self.data[r["State"]].set_population(int(r["Population"]))
                     self.data[r["State"]].set_median_age(float(r["Median Age"]))
 
-                self.data[r["State"]].add_cases(r["Period"], int(r["Cases"]))
                 self.data[r["State"]].add_deaths(r["Period"], int(r["Deaths"]))
 
-    def _create_state_covid_object(state, population, cases, deaths):
-        state_object = StateCovid(state)
-
-        state_object.add_cases(period, cases)
-        state_object.add_deaths(period, deaths)
-
-    def _get_covid_data(self, file_name, url, is_cases: bool):
+    def _get_covid_data(self, file_name, url):
         if not os.path.exists(file_name):
             self._get_web_data(url, file_name)
 
@@ -216,10 +172,8 @@ class StateCovidData:
 
                         state_data = self.data[row["State"]]
                         month_total = int(row[date_key]) - previous_value
-                        if is_cases:
-                            state_data.add_cases(month, month_total)
-                        else:
-                            state_data.add_deaths(month, month_total)
+                        
+                        state_data.add_deaths(month, month_total)
 
                         self.data[row["State"]] = state_data
                         previous_value = int(row[date_key])
@@ -296,20 +250,6 @@ class StateCovidData:
             rates.append((key, obj.population, obj.median_age, obj.max_death_rate_by_month()))
         return rates
     
-    def get_max_case_rate(self):
-        rates = []
-        for key, obj in self.data.items():
-            rates.append((key, obj.population, obj.median_age, obj.max_case_rate_by_month()))
-        return rates
-
-    def get_max_rates(self):
-        rates = []
-        for key, obj in self.data.items():
-            case_rate = obj.max_case_rate_by_month()
-            death_rate = obj.max_death_rate_by_month()
-            rates.append([key, obj.population, obj.median_age, case_rate, death_rate])
-        return rates
-    
     def sort_by_state(self):
         sorted(self.data.items(), key=lambda d: (d.state, d.population))
 
@@ -372,17 +312,6 @@ def print_data(covid_data, sort_order, outfile):
     write_to_file(covid_data, outfile)
 
 
-def covid_cases(covid_data, sort_order, plot, outfile):
-    data_rates = covid_data.get_max_case_rate()
-
-    df = pd.DataFrame(data_rates, columns=["state", "population", "median_age", "case_rate"])
-    df = df.sort_values(by=sort_order)
-    write_to_file(df, outfile)
-
-    if plot:
-        plot_data(df["state"], df["case_rate"])
-
-
 def covid_deaths(covid_data, sort_order, plot, outfile):
     death_rates = covid_data.get_max_death_rate()
 
@@ -402,12 +331,12 @@ def state_data(covid_data, state, outfile):
     if outfile is None:
         print(headers)
         for key, value in state_data.data.items():
-            print(f"{calendar.month_abbr[int(key)]} - cases: {value.cases}, deaths: {value.deaths}")
+            print(f"Deaths in {calendar.month_abbr[int(key)]}: {value}")
     else:
         with open(outfile, "w") as output:
             output.write(headers)
             for key, value in state_data.data.items():
-                output.write(f"{calendar.month_abbr[int(key)]} - cases: {value.cases}, deaths: {value.deaths}\n")
+                output.write(f"Deaths in {calendar.month_abbr[int(key)]}: {value}\n")
 
 
 def plot_data(x: list, y: list):
@@ -430,7 +359,7 @@ def main():
 
     parser.add_argument("command", metavar="<command>",
                         type=str,
-                        choices=["print", "cases", "deaths", "state"],
+                        choices=["print", "deaths", "state"],
                         help="Command to print")
 
     parser.add_argument("-l", "--location", dest="state",
@@ -479,10 +408,6 @@ def main():
         else:
             covid_data.sort_by_median_age()
         print_data(covid_data, sort_order, outfile)
-        return None
-
-    if command_param == "cases":
-        covid_cases(covid_data, sort_order, plot, outfile)
         return None
 
     if command_param == "deaths":
