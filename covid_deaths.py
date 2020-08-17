@@ -39,11 +39,11 @@ class StateCovid:
         yield self.data.items()
 
     def add_deaths(self, period: int, number_of_deaths: int):
-        if period not in self.data.keys():
-            self.data[period] = number_of_deaths
+        if int(period) not in self.data.keys():
+            self.data[int(period)] = number_of_deaths
             return None
 
-        p_data = self.data[period]
+        p_data = self.data[int(period)]
 
         period_data = p_data + number_of_deaths
 
@@ -64,6 +64,9 @@ class StateCovid:
 
     def get_death_data(self):
         return self.data.items()
+
+    def get_death_data_for_period(self, period):
+        return self.data[period]
 
     def max_death_rate_by_month(self):
         max_val = -99999999
@@ -243,7 +246,13 @@ class StateCovidData:
             file_stuff = original_file.read()
 
         return file_stuff
-    
+
+    def get_deaths_for_period(self, period):
+        rates = []
+        for key, obj in self.data.items():
+            rates.append((key, obj.population, obj.median_age, obj.get_death_data_for_period(period)))
+        return rates
+
     def get_max_death_rate(self):
         rates = []
         for key, obj in self.data.items():
@@ -400,7 +409,8 @@ def main():
     logging.debug(f"Arg outfile = {outfile}")
     logging.debug(f"Arg state = {state}")
 
-    covid_data = StateCovidData(file_name)    
+    covid_data = StateCovidData(file_name)
+    print(covid_data.get_deaths_for_period(5))
 
     if command_param == "print":
         if sort_order == "population":
