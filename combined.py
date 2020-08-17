@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import logging
 import matplotlib.pyplot as plt
+import sys
 from collections import defaultdict
 from covid_deaths import StateCovidData, StateCovid
 from covid_cases import StateCountyData, StateCounty
@@ -136,6 +137,10 @@ def main():
     plot_data_df = covid_for_states(period, sort_order)
 
     if plot == "pie":
+        if state is None:
+            print("To create a pie chart, I need a state. Use the '-l' argument and supply a 2 letter state code.")
+            sys.exit()
+            
         state_to_total_comparison(plot_data_df, state)
     else:
         rate = plot_data_df["deaths"]/plot_data_df["cases"]
