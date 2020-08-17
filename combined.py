@@ -1,9 +1,9 @@
-from covid_deaths import StateCovidData, StateCovid
-from covid_cases import StateCountyData, StateCounty
 import pandas as pd
 import argparse
 import logging
-
+from collections import defaultdict
+from covid_deaths import StateCovidData, StateCovid
+from covid_cases import StateCountyData, StateCounty
 
 def plot_data(x: list, y: list):
     import matplotlib.pyplot as plt
@@ -11,22 +11,46 @@ def plot_data(x: list, y: list):
     plt.xticks(rotation=90)
     plt.show()
 
+
+def group_counties_to_states(period):
+    cases = StateCountyData()
+    cases_sorted = cases.sort_by_state()
+
+    month_dict = {'3' : 'March', '4' : 'April', '5' : 'May', '6' : 'June',
+                    '7' : 'July'}
+    period_as_month = month_dict[str(period)]
+
+    cases_dict = defaultdict(list)
+    # pop_dict = defaultdict(list)
+
+    for i in cases_sorted:
+        if i.month == period_as_month:
+            if i.state not in cases_dict:
+                cases_dict[i.state] = i.case_num
+                # pop_dict[i.state] = i.pop
+                continue
+
+            cases_dict[i.state] = cases_dict[i.state] + i.case_num
+            # pop_dict[i.state] = pop_dict[i.state] + i.pop
+
+    return cases_dict
+
+
 def covid_for_states(period, sort_order):
     deaths = StateCovidData("covid.data.txt")
-    # cases = StateCountyData()
+    
+    cases = group_counties_to_states(period)
     
     deaths_for_period = deaths.get_deaths_for_period(period)
     df = pd.DataFrame(deaths_for_period, columns=["state", "population", "median_age", "deaths"])
-    df = df.sort_values(by="population")
+    df = df.sort_values(by="state")
 
-    # df["cases"] = cases.sort_by_state()
+    df["cases"] = cases.values()
 
     df = df.sort_values(by=sort_order)
 
     return df
 
-    m =deaths.get_deaths_for_period(period)
-    print(m)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -57,8 +81,7 @@ def main():
     """
     plot_data_df = covid_for_states(period, sort_order)
 
-    rate = plot_data_df["deaths"]
-    # rate = plot_data_df["deaths"]/plot_data_df["cases"]
+    rate = plot_data_df["deaths"]/plot_data_df["cases"]
 
     plot_data(plot_data_df["state"], rate)
 
