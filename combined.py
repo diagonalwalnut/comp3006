@@ -1,12 +1,13 @@
 import pandas as pd
+import numpy as np
 import argparse
 import logging
+import matplotlib.pyplot as plt
 from collections import defaultdict
 from covid_deaths import StateCovidData, StateCovid
 from covid_cases import StateCountyData, StateCounty
 
 def plot_data(x: list, y: list):
-    import matplotlib.pyplot as plt
     plt.scatter(x, y)
     plt.xticks(rotation=90)
     plt.show()
@@ -51,6 +52,55 @@ def covid_for_states(period, sort_order):
 
     return df
 
+def state_to_total_comparison(df, state):
+    tot_pop = sum(df["population"])
+    tot_cases = sum(df["cases"])
+    tot_deaths = sum(df["deaths"])
+    st = df[df.state == state]
+
+    vals_pop = np.array([tot_pop, st["population"].sum()])
+    vals_cases = np.array([tot_cases, st["cases"].sum()])
+    vals_deaths = np.array([tot_deaths, st["deaths"].sum()])
+    pop_radius = 1.50
+    cases_radius = 1
+    deaths_radius = .50
+
+    outer_label = [f'Total population:\n{tot_pop}', f'{state} population:\n{st["population"].sum()}']
+    middle_label = [f'{tot_cases}', f'{st["cases"].sum()}']
+    inner_label = [f'{tot_deaths}', f'{st["deaths"].sum()}']
+
+    fig, ax = plt.subplots()
+    ax.axis('equal')
+
+    a, b =[plt.cm.Blues, plt.cm.Greens]
+
+    pop_pie, _ = ax.pie(vals_pop, radius=pop_radius,
+                        wedgeprops=dict(width=.3, edgecolor='w'),
+                        labels=outer_label,
+                        labeldistance=0.8,
+                        colors=[a(0.6), b(0.6)])
+    plt.setp(pop_pie, width=0.5, edgecolor='white')
+
+    cases_pie, _ = ax.pie(vals_cases, radius=cases_radius, 
+                          wedgeprops=dict(width=.3, edgecolor='w'),
+                          labels=middle_label,
+                          labeldistance=0.6,
+                          colors=[a(0.4), b(0.4)])
+    plt.setp(cases_pie, width=0.5, edgecolor='white')
+
+    deaths_pie, _ = ax.pie(vals_deaths, radius=deaths_radius,
+                           wedgeprops=dict(width=.3, edgecolor='w'),
+                           labels=inner_label,
+                           labeldistance=0.3,
+                           colors=[a(0.2), b(0.2)])
+    plt.setp(deaths_pie, width=0.5, edgecolor='white')
+
+    plt.margins(0,0)
+    ax.set_title(f"Population, Cases, Deaths for {state}",
+                 loc="center")
+
+    plt.show()
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -67,23 +117,29 @@ def main():
                         choices=[3, 4, 5, 6, 7],
                         help="")
 
+    parser.add_argument("-p", "--plot", dest="plot",
+                        type=str,
+                        choices=["pie", "scatter"],
+                        default="scatter",
+                        help="")
+
+    parser.add_argument("-l", "--location", dest="state",
+                        type=str, help="")
+
     args = parser.parse_args()
 
     sort_order = args.sort_order
     period = args.month
+    state = args.state
+    plot = args.plot
 
-    """ 
-    We need to add the call to covid_cases here to get the cases.
-
-    We can then add the values to the plot_data_df dataframe. It would
-    probably be best to get the caes first, then pass it into covid_for_states()
-    which would add the cases as it iterates through "deaths".
-    """
     plot_data_df = covid_for_states(period, sort_order)
 
-    rate = plot_data_df["deaths"]/plot_data_df["cases"]
-
-    plot_data(plot_data_df["state"], rate)
+    if plot == "pie":
+        state_to_total_comparison(plot_data_df, state)
+    else:
+        rate = plot_data_df["deaths"]/plot_data_df["cases"]
+        plot_data(plot_data_df["state"], rate)
 
 if __name__ == '__main__':
     main()
