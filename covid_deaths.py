@@ -76,7 +76,6 @@ class StateCovid:
 
         return round(dat/(self.population/1000000), 5)
 
-
 class StateCovidData:
     def __init__(self, data_file_name: str):
         self.data = dict()

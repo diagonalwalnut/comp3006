@@ -38,20 +38,49 @@ def group_counties_to_states(period):
     return cases_dict
 
 
-def covid_for_states(period, sort_order):
+def covid_for_states(sort_order, period):
     deaths = StateCovidData("covid.data.txt")
     
-    cases = group_counties_to_states(period)
+    if period is None:
+        start = 3
+        end = 8
+    else:
+        start = period
+        end = period + 1
+
+    df = None
+
+    for i in range(start, end):
+        cases = group_counties_to_states(i)
+        deaths_for_period = deaths.get_deaths_for_period(i)
+        if df is None:
+            df = pd.DataFrame(deaths_for_period, columns=["state", "population", "median_age", "deaths-" + str(i)])
+            df = df.sort_values(by="state")
+            df["cases-" + str(i)] = cases.values()
+            continue
     
-    deaths_for_period = deaths.get_deaths_for_period(period)
-    df = pd.DataFrame(deaths_for_period, columns=["state", "population", "median_age", "deaths"])
-    df = df.sort_values(by="state")
+        temp = pd.DataFrame(deaths_for_period, columns=["state", "population", "median_age", "deaths"])
+        temp = temp.sort_values(by="state")
+        temp["cases"] = cases.values()
 
-    df["cases"] = cases.values()
-
+        df[str("cases-" + str(i))] = temp["cases"]
+        df[str("deaths-" + str(i))] = temp["deaths"]
+        
+    
     df = df.sort_values(by=sort_order)
+    
+    rtnDf = pd.DataFrame()
+    rtnDf["state"] = df["state"]
+    rtnDf["population"] = df["population"]
+    rtnDf["median_age"] = df["median_age"]
+    rtnDf["cases"] = 0
+    rtnDf["deaths"] = 0
 
-    return df
+    for i in range(start, end):
+        rtnDf["cases"] = rtnDf["cases"] + df["cases-" + str(i)]
+        rtnDf["deaths"] = rtnDf["deaths"] + df["deaths-" + str(i)]
+
+    return rtnDf
 
 def state_to_total_comparison(df, state):
     tot_pop = sum(df["population"])
@@ -103,6 +132,26 @@ def state_to_total_comparison(df, state):
     plt.show()
 
 
+def plot_bar_chart(cases, deaths, state):
+    labels = state
+
+    x = np.arange(len(labels))  # the label locations
+    width = 0.35  # the width of the bars
+
+    fig, ax = plt.subplots()
+    rects1 = ax.bar(x - width/2, deaths, width, label='Deaths')
+    rects2 = ax.bar(x + width/2, cases, width, label='Cases')
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_ylabel('Scores')
+    ax.set_title('Scores by group and gender')
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.legend()
+
+    plt.xticks(rotation=90)
+    plt.show()
+
 def main():
     parser = argparse.ArgumentParser(
         description="Parse command line arguments")
@@ -120,7 +169,7 @@ def main():
 
     parser.add_argument("-p", "--plot", dest="plot",
                         type=str,
-                        choices=["pie", "scatter"],
+                        choices=["pie", "scatter", "bar"],
                         default="scatter",
                         help="")
 
@@ -134,14 +183,18 @@ def main():
     state = args.state
     plot = args.plot
 
-    plot_data_df = covid_for_states(period, sort_order)
+    plot_data_df = covid_for_states(sort_order, period)
 
     if plot == "pie":
         if state is None:
             print("To create a pie chart, I need a state. Use the '-l' argument and supply a 2 letter state code.")
             sys.exit()
-            
+           
         state_to_total_comparison(plot_data_df, state)
+    elif plot == "bar":
+        death_rate = plot_data_df["deaths"]/plot_data_df["population"]
+        case_rate = plot_data_df["cases"]/plot_data_df["population"]
+        plot_bar_chart(case_rate, death_rate, plot_data_df["state"])
     else:
         rate = plot_data_df["deaths"]/plot_data_df["cases"]
         plot_data(plot_data_df["state"], rate)
