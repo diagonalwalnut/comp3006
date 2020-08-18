@@ -58,15 +58,14 @@ def covid_for_states(sort_order, period):
             df = df.sort_values(by="state")
             df["cases-" + str(i)] = cases.values()
             continue
-    
+
         temp = pd.DataFrame(deaths_for_period, columns=["state", "population", "median_age", "deaths"])
         temp = temp.sort_values(by="state")
         temp["cases"] = cases.values()
 
         df[str("cases-" + str(i))] = temp["cases"]
         df[str("deaths-" + str(i))] = temp["deaths"]
-        
-    
+
     df = df.sort_values(by=sort_order)
     
     rtnDf = pd.DataFrame()
