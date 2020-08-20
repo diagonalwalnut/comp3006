@@ -5,6 +5,7 @@ import requests
 import argparse
 import logging
 import calendar
+import codecs
 import numpy as np
 import pandas as pd
 from datetime import timedelta, date
@@ -127,7 +128,7 @@ class StateCovidData:
         self._write_object_data_to_file(data_file_name)
 
     def _write_object_data_to_file(self, file_name):
-        with open(file_name, "w") as data_file:
+        with open(file_name, "w", newline="", encoding="utf-8") as data_file:
             csv_columns = ["State", "Population", "Median Age", "Period", "Deaths"]
             writer = csv.DictWriter(data_file, fieldnames=csv_columns)
             logging.debug(f"_write_object_data_to_file(): Writing data to {file_name}")
@@ -147,7 +148,7 @@ class StateCovidData:
                     writer.writerow(row_data)
 
     def _get_data_from_file(self, file_name):
-        with open(file_name, "r") as data_file:
+        with open(file_name, "r", encoding="utf-8") as data_file:
             logging.debug(f"_get_data_from_file(): Getting data from {file_name}")
             csv_columns = ["State", "Population", "Median Age", "Period", "Deaths"]
             reader = csv.DictReader(data_file, fieldnames=csv_columns)
@@ -169,10 +170,21 @@ class StateCovidData:
         end_month = 7
 
         logging.debug(f"_get_covid_data(): Read data from {file_name}")
-        with open(file_name, "r") as data_file:
+        with open(file_name, "r", encoding="utf-8-sig") as data_file:
+            data_file
             reader = csv.DictReader(data_file)
+
             for row in reader:
-                if row["\ufeffcountyFIPS"] != 0:
+                # In testing, I was encountering an encoding issue with the BOM.
+                # Specifying the encoding did not correct it in 1 environment.
+                # This is a work around in case that surfaces on unknown machines.
+                try:
+                    state_flag = row["countyFIPS"]
+                except KeyError as k:
+                    logging.debug(f"_get_median_age: Key error, {k}")
+                    state_flag = row["\ufeffcountyFIPS"]
+
+                if state_flag != 0:
                     # the data is cumulative by column, so I will subtract the
                     # last period from the current to get the amount.
                     date_key = self._format_date_key(start_month-1)
@@ -190,7 +202,6 @@ class StateCovidData:
 
                         self.data[row["State"]] = state_data
                         previous_value = int(row[date_key])
-                logging.debug(f"{self.data[row['State']]}")
 
     def _get_populations(self, pop_file_name):
         if not os.path.exists(pop_file_name):
@@ -201,7 +212,7 @@ class StateCovidData:
 
         state_totals = dict()
 
-        with open(pop_file_name, "r") as data_file:
+        with open(pop_file_name, "r", encoding="utf-8") as data_file:
             reader = csv.DictReader(data_file)
 
             for p in reader:
@@ -219,12 +230,16 @@ class StateCovidData:
 
         state_median = defaultdict()
 
-        with open(age_file_name, "r") as data_file:
+        with open(age_file_name, encoding="utf-8") as data_file:
             reader = csv.DictReader(data_file)
 
             for p in reader:
-                state_median[p['\ufeffState']] = p["Median"]
-
+                try:
+                    state_median[p["State"]] = p["Median"]
+                except KeyError as k:
+                    logging.debug(f"_get_median_age: {k}")
+                    state_median[p["\ufeffState"]] = p["Median"]
+                
         return state_median
 
     def _get_web_data(self, data_url, file_name: str):
@@ -239,7 +254,7 @@ class StateCovidData:
 
         if response:
             logging.debug(f"Writing data to {file_name}.")
-            with open(file_name, 'w') as data:
+            with open(file_name, "w", newline="", encoding="utf-8") as data:
                 data.write(response.text)
         else:
             logging.critical(f"We have a problem: {response.status_code}")
@@ -253,7 +268,7 @@ class StateCovidData:
         if not os.path.exists(data_file_name):
             raise FileNotFoundError
 
-        with open(data_file_name, "r") as original_file:
+        with open(data_file_name, "r", encoding="utf-8") as original_file:
             file_stuff = original_file.read()
 
         return file_stuff
@@ -290,7 +305,7 @@ def write_to_file(covid_data_df, outfile):
             writer.writerow(row)
     else:
         logging.debug(f"Writing data to {outfile}.")
-        with open(outfile, "w") as outfile:
+        with open(outfile, "w", encoding="utf-8") as outfile:
             writer = csv.writer(outfile)
             writer.writerow(headers)
             for index, row in covid_data_df.iterrows():
@@ -334,7 +349,7 @@ def state_data(covid_data, state, plot, outfile):
         for key, value in s_data.state_data.items():
             print(f"Deaths in {calendar.month_abbr[int(key)]}: {value}")
     else:
-        with open(outfile, "w") as output:
+        with open(outfile, "w", encoding="utf-8") as output:
             output.write(headers)
             for key, value in s_data.state_data.items():
                 output.write(f"Deaths in {calendar.month_abbr[int(key)]}: {value}\n")
@@ -349,13 +364,16 @@ def plot_line_chart(keys, values, state, population, median_age):
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots()
-    
+
     month_label = []
     for m in keys:
         month_label.append(calendar.month_name[m])
 
-    ax.plot(month_label, values)
-    plot_title = f"{state}\nPopulation: {population}\nMedian Age{median_age}"
+    values_array = np.array(list(values), dtype=np.float32)
+
+    ax.plot(month_label, values_array)
+    
+    plot_title = f"{state}\nPopulation: {population}\nMedian Age: {median_age}"
     ax.set_title(plot_title)
     
     plt.xticks(rotation=45)
@@ -423,6 +441,7 @@ def main():
     file_name = "covid_data.csv"
 
     logging.debug("Create Data class.")
+    logging.debug(sys.getdefaultencoding())
 
     parser = argparse.ArgumentParser(
         description="Parse command line arguments")
