@@ -117,13 +117,13 @@ class TestStateCovidData(unittest.TestCase):
         with self.assertRaises(KeyError):
             data_dict.data["NY"]
     
-    def test_get_death_data(self):
+    def test_get_death_data_test_file(self):
         data_dict = StateCovidData("no_file.txt", True)
         data_dict._get_covid_data("test_deaths.csv", "http://google.com")
 
-        co_str = "State: AL, Population: 0, Median Age: 0, State Data: {3: 3, 4: 27, 5: 30, 6: 90, 7: 150}"
+        al_str = "State: AL, Population: 0, Median Age: 0, State Data: {3: 3, 4: 27, 5: 30, 6: 90, 7: 150}"
     
-        self.assertEqual(str(data_dict.data["AL"]), co_str)
+        self.assertEqual(str(data_dict.data["AL"]), al_str)
 
     def test_get_population(self):
         data_dict = StateCovidData("no_file.txt", True)
