@@ -1,5 +1,5 @@
 import csv, logging, argparse, sys
-import matplotlib.pyplot as plt, numpy as np
+import matplotlib.pyplot as plt
 from collections import defaultdict
 
 
@@ -149,10 +149,11 @@ class StateCountyData:
         self.data.sort(key=lambda StateCounty : (StateCounty.state, \
                         StateCounty.pop, StateCounty.county, \
                         month_dict[StateCounty.month], StateCounty.case_num))
-        logging.debug('sorted by state %s' % self.data)
+        #logging.debug('sorted by state %s' % self.data)
         return self.data
 
 def states_write(args, rate_dict, month_dict):
+    logging.debug('args is %s' % args)
     # writes the output for the 'states' command and makes a plot if '-p'
     # is given in the command line
 
@@ -181,11 +182,19 @@ def states_write(args, rate_dict, month_dict):
                     : rate_dict[i]})
 
     if args.plot:
-        plt.plot([x[0] for x in rate_dict], [rate_dict[x] for x in rate_dict], 'go')
+        x_axis = [x[1] for x in sort_keys]
+        y_axis = [rate_dict[x] for x in sort_keys]
+        point_labels = [x[0] for x in sort_keys]
+
+        fig, ax = plt.subplots()
+        ax.scatter(x_axis, y_axis, c='green')
         plt.title(f'Infection Rates in {month_dict[args.which_month]} 2020')
-        plt.xlabel('states in order of increasing population')
-        plt.xticks(rotation=90)
-        plt.ylabel('infection rate as a percentage of state population')
+        plt.xlabel('State population')
+        plt.ylabel('Infection rates as a percentage of state population')
+
+        for i, txt in enumerate(point_labels):
+            ax.annotate(txt, (x_axis[i], y_axis[i]))
+
         plt.show()
 
 def months_write(args, rate_dict, month_dict):
@@ -210,11 +219,19 @@ def months_write(args, rate_dict, month_dict):
                     : rate_dict[i]})
 
     if args.plot:
-        plt.plot([x[0] for x in rate_dict], [rate_dict[x] for x in rate_dict], 'ro')
-        plt.title(f'Infection Rates in {month_dict[args.which_month]} 2020 for {args.which_state}')
-        plt.xlabel('counties in order of increasing population')
-        plt.xticks(rotation=90)
-        plt.ylabel('infection rate as a percentage of county population')
+        x_axis = [x[1] for x in rate_dict]
+        y_axis = [rate_dict[x] for x in rate_dict]
+        plot_labels = [x[0] for x in rate_dict]
+
+        fig, ax = plt.subplots()
+        ax.scatter(x_axis, y_axis, c='red')
+        plt.title(f'Infection rates for {args.which_state} in {month_dict[args.which_month]} 2020')
+        plt.xlabel('County population')
+        plt.ylabel('Infection rate as a percentage of county population')
+
+        for i, txt in enumerate(plot_labels):
+            ax.annotate(txt, (x_axis[i], y_axis[i]))
+
         plt.show()
 
 def states(args):
@@ -230,16 +247,15 @@ def states(args):
             cases_dict[i.state].append(i.case_num)
             pop_dict[i.state].append(i.pop)
 
-    '''logging.debug('cases_dict is %s' % cases_dict)
-    logging.debug('pop_dict is %s' % pop_dict)'''
-
     # the dictionary from which output and plots are made
     for k in cases_dict:
         rate_dict.update({(k, sum(pop_dict[k])) : (sum(cases_dict[k] * 100) / sum(pop_dict[k]))})
 
-    logging.debug('rate_dict is %s' % rate_dict)
+    #logging.debug('rate_dict is %s' % rate_dict)
 
     states_write(args, rate_dict, month_dict)
+
+    return rate_dict
 
 def months(args):
     # what happens when the command 'months' is given
@@ -254,11 +270,14 @@ def months(args):
             i.pop > 0:
             rate_dict.update({(i.county, i.pop) : (i.case_num * 100) / i.pop})
 
-    logging.debug('rate_dict is %s' % rate_dict)
+    #logging.debug('rate_dict is %s' % rate_dict)
 
     months_write(args, rate_dict, month_dict)
 
+    return rate_dict
+
 def arguments(args):
+    #logging.debug('args.command is %s' % args.command)
     # this function handles the 'command' argument
     if args.command == 'states':
         states(args)
@@ -269,23 +288,7 @@ def arguments(args):
         else:
             months(args)
 
-def main():
-    # This function sets up logging and argparse
-
-    # setting up the logger
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-
-    # messages that go to a file:
-    fh = logging.FileHandler('covid_cases.log', 'w')
-    fh.setLevel(logging.DEBUG)
-    logger.addHandler(fh)
-
-    # messages that go to console:
-    sh = logging.StreamHandler()
-    sh.setLevel(logging.INFO)
-    logger.addHandler(sh)
-
+def parse_my_args(input):
     # setting up the argument parser
     parser = argparse.ArgumentParser(description=\
                         'Covid data for March through July 2020')
@@ -311,10 +314,32 @@ def main():
     # optional command to plot data
     parser.add_argument('-p', '--plot', action='store_true',
                         help='to create a plot')
-    args = parser.parse_args()
 
-    arguments(args)
+    args = parser.parse_args(input)
 
+    logging.debug('Args is %s' % args)
+
+    return args
+
+def main():
+
+    # setting up the logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+
+    # messages that go to a file:
+    fh = logging.FileHandler('covid_cases.log', 'w')
+    fh.setLevel(logging.DEBUG)
+    logger.addHandler(fh)
+
+    # messages that go to console:
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.INFO)
+    logger.addHandler(sh)
+
+    # handling arguments
+
+    arguments(parse_my_args(sys.argv[1:]))
 
 if __name__ == '__main__':
     main()

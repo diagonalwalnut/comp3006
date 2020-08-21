@@ -15,7 +15,7 @@ class TestStateCovid(unittest.TestCase):
     def test_calc_death_to_case_rates(self):
         rate = combined.calc_deaths_to_cases(10, 100)
         self.assertEqual(rate, .1000)
-    
+
     def test_create_dataframe(self):
         data_dict = StateCovidData("no_file.txt", True)
         data_dict._get_covid_data("test_deaths.csv", "http://google.com")
@@ -32,3 +32,6 @@ class TestStateCovid(unittest.TestCase):
         t = combined.covid_for_states(data_dict, "population", 7)
         self.assertEqual(t["deaths"][0], 150)
         self.assertEqual(t["deaths"][1], 300)
+
+if __name__ == '__main__':
+    unittest.main()

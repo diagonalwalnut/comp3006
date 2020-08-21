@@ -16,15 +16,15 @@ def plot_data(x: list, y: list, sort_order, period):
         period = "March - July"
 
     if sort_order == 'population':
-        plt.title(f'Death rates by state for {period} 2020')
+        plt.title(f'Death rates by state for {period}/2020')
         plt.xlabel('States in order of increasing population')
         plt.ylabel('Ratio of deaths to cases')
     elif sort_order == 'median_age':
-        plt.title(f'Death rates by state for {period} 2020')
+        plt.title(f'Death rates by state for {period}/2020')
         plt.xlabel('States in order of increasing median age')
         plt.ylabel('Ratio of deaths to cases')
     else:
-        plt.title(f'Death rates by state for {period} 2020')
+        plt.title(f'Death rates by state for {period}/2020')
         plt.xlabel('States in alphabetical order')
         plt.ylabel('Ratio of deaths to cases')
 
@@ -116,7 +116,7 @@ def plot_state_to_total_comparison(df, state, period):
 
     outer_label = [f'U.S. population:\n{tot_pop}', f'{state} population:\n{st["population"].sum()}\n{outer_perc}%']
     middle_label = [f'U.S. cases:\n{tot_cases}', f'{state} cases:\n{st["cases"].sum()}\n{middle_perc}%']
-    inner_label = [f'U.S. deaths:\n{tot_deaths}', f'{state}deaths:\n{st["deaths"].sum()}\n{inner_perc}%']
+    inner_label = [f'U.S. deaths:\n{tot_deaths}', f'{state} deaths:\n{st["deaths"].sum()}\n{inner_perc}%']
 
     fig, ax = plt.subplots()
     ax.axis('equal')
@@ -148,7 +148,7 @@ def plot_state_to_total_comparison(df, state, period):
     if period is None:
         period = "March - July"
 
-    ax.set_title(f"Population, Cases, Deaths for {state} in {period} 2020",
+    ax.set_title(f"Population, Cases, Deaths for {state} in {period}/2020",
                  loc="center")
 
     plt.show()
@@ -172,15 +172,15 @@ def plot_bar_chart(cases, deaths, state, sort_order, period):
         period = "March - July"
 
     if sort_order == 'population':
-        ax.set_title(f'Comparison of case rates and death rates for {period} 2020')
+        ax.set_title(f'Comparison of case rates and death rates for {period}/2020')
         ax.set_ylabel('Ratio of deaths/cases to population')
         ax.set_xlabel('States in order of increasing population')
     elif sort_order == 'median_age':
-        ax.set_title(f'Comparison of case rates and death rates for {period} 2020')
+        ax.set_title(f'Comparison of case rates and death rates for {period}/2020')
         ax.set_ylabel('Ratio of deaths/cases to population')
         ax.set_xlabel('States in order of increasing median_age')
     else:
-        ax.set_title(f'Comparison of case rates and death rates for {period} 2020')
+        ax.set_title(f'Comparison of case rates and death rates for {period}/2020')
         ax.set_ylabel('Ratio of deaths/cases to population')
         ax.set_xlabel('States in alphabetical order')
 
