@@ -8,9 +8,24 @@ from collections import defaultdict
 from covid_deaths import StateCovidData, StateCovid
 from covid_cases import StateCountyData, StateCounty
 
-def plot_data(x: list, y: list):
+def plot_data(x: list, y: list, sort_order, period):
+
     plt.scatter(x, y)
     plt.xticks(rotation=90)
+
+    if sort_order == 'population':
+        plt.title(f'Death rates by state for {period}/2020')
+        plt.xlabel('States in order of increasing population')
+        plt.ylabel('Ratio of deaths to cases')
+    elif sort_order == 'median_age':
+        plt.title(f'Death rates by state for {period}/2020')
+        plt.xlabel('States in order of increasing median age')
+        plt.ylabel('Ratio of deaths to cases')
+    else:
+        plt.title(f'Death rates by state for {period}/2020')
+        plt.xlabel('States in alphabetical order')
+        plt.ylabel('Ratio of deaths to cases')
+
     plt.show()
 
 
@@ -40,7 +55,7 @@ def group_counties_to_states(period):
 
 def covid_for_states(sort_order, period):
     deaths = StateCovidData("covid.data.txt")
-    
+
     if period is None:
         start = 3
         end = 8
@@ -67,7 +82,7 @@ def covid_for_states(sort_order, period):
         df[str("deaths-" + str(i))] = temp["deaths"]
 
     df = df.sort_values(by=sort_order)
-    
+
     rtnDf = pd.DataFrame()
     rtnDf["state"] = df["state"]
     rtnDf["population"] = df["population"]
@@ -81,7 +96,7 @@ def covid_for_states(sort_order, period):
 
     return rtnDf
 
-def state_to_total_comparison(df, state):
+def state_to_total_comparison(df, state, period):
     tot_pop = sum(df["population"])
     tot_cases = sum(df["cases"])
     tot_deaths = sum(df["deaths"])
@@ -94,9 +109,9 @@ def state_to_total_comparison(df, state):
     cases_radius = 1
     deaths_radius = .50
 
-    outer_label = [f'Total population:\n{tot_pop}', f'{state} population:\n{st["population"].sum()}']
-    middle_label = [f'{tot_cases}', f'{st["cases"].sum()}']
-    inner_label = [f'{tot_deaths}', f'{st["deaths"].sum()}']
+    outer_label = [f'U.S. population:\n{tot_pop}', f'{state} population:\n{st["population"].sum()}']
+    middle_label = [f'U.S. cases:\n{tot_cases}', f'{state} cases:\n{st["cases"].sum()}']
+    inner_label = [f'U.S. deaths:\n{tot_deaths}', f'{state}deaths:\n{st["deaths"].sum()}']
 
     fig, ax = plt.subplots()
     ax.axis('equal')
@@ -110,28 +125,28 @@ def state_to_total_comparison(df, state):
                         colors=[a(0.6), b(0.6)])
     plt.setp(pop_pie, width=0.5, edgecolor='white')
 
-    cases_pie, _ = ax.pie(vals_cases, radius=cases_radius, 
+    cases_pie, _ = ax.pie(vals_cases, radius=cases_radius,
                           wedgeprops=dict(width=.3, edgecolor='w'),
                           labels=middle_label,
-                          labeldistance=0.6,
+                          labeldistance=0.6, startangle=-30,
                           colors=[a(0.4), b(0.4)])
     plt.setp(cases_pie, width=0.5, edgecolor='white')
 
     deaths_pie, _ = ax.pie(vals_deaths, radius=deaths_radius,
                            wedgeprops=dict(width=.3, edgecolor='w'),
-                           labels=inner_label,
+                           labels=inner_label, startangle=90,
                            labeldistance=0.3,
                            colors=[a(0.2), b(0.2)])
     plt.setp(deaths_pie, width=0.5, edgecolor='white')
 
     plt.margins(0,0)
-    ax.set_title(f"Population, Cases, Deaths for {state}",
+    ax.set_title(f"Population, Cases, Deaths for {state} in {period}/2020",
                  loc="center")
 
     plt.show()
 
 
-def plot_bar_chart(cases, deaths, state):
+def plot_bar_chart(cases, deaths, state, sort_order, period):
     labels = state
 
     x = np.arange(len(labels))  # the label locations
@@ -142,11 +157,22 @@ def plot_bar_chart(cases, deaths, state):
     rects2 = ax.bar(x + width/2, cases, width, label='Cases')
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_ylabel('Scores')
-    ax.set_title('Scores by group and gender')
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.legend()
+
+    if sort_order == 'population':
+        ax.set_title(f'Comparison of case rates and death rates for {period}/2020')
+        ax.set_ylabel('Ratio of deaths/cases to population')
+        ax.set_xlabel('States in order of increasing population')
+    elif sort_order == 'median_age':
+        ax.set_title(f'Comparison of case rates and death rates for {period}/2020')
+        ax.set_ylabel('Ratio of deaths/cases to population')
+        ax.set_xlabel('States in order of increasing median_age')
+    else:
+        ax.set_title(f'Comparison of case rates and death rates for {period}/2020')
+        ax.set_ylabel('Ratio of deaths/cases to population')
+        ax.set_xlabel('States in alphabetical order')
 
     plt.xticks(rotation=90)
     plt.show()
@@ -188,15 +214,15 @@ def main():
         if state is None:
             print("To create a pie chart, I need a state. Use the '-l' argument and supply a 2 letter state code.")
             sys.exit()
-           
-        state_to_total_comparison(plot_data_df, state)
+
+        state_to_total_comparison(plot_data_df, state, period)
     elif plot == "bar":
         death_rate = plot_data_df["deaths"]/plot_data_df["population"]
         case_rate = plot_data_df["cases"]/plot_data_df["population"]
-        plot_bar_chart(case_rate, death_rate, plot_data_df["state"])
+        plot_bar_chart(case_rate, death_rate, plot_data_df["state"], sort_order, period)
     else:
         rate = plot_data_df["deaths"]/plot_data_df["cases"]
-        plot_data(plot_data_df["state"], rate)
+        plot_data(plot_data_df["state"], rate, sort_order, period)
 
 if __name__ == '__main__':
     main()
