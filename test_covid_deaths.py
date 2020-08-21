@@ -82,6 +82,8 @@ class TestStateCovid(unittest.TestCase):
         test_state.add_deaths(4, 200)
         total = test_state.get_total_deaths()
         self.assertEqual(total, 300)
+        total = test_state.get_death_data_for_period(3)
+        self.assertEqual(total, 100)
 
     def test_max_deaths(self):
         test_state = StateCovid("TX", 28000000, 35)
@@ -138,6 +140,24 @@ class TestStateCovidData(unittest.TestCase):
         
         self.assertEqual(age_test["CO"], 37.1)
         self.assertEqual(age_test["TX"], 35)
+    
+    def test_get_totals(self):
+        data_dict = StateCovidData("no_file.txt", True)
+        data_dict._get_covid_data("test_deaths.csv", "http://google.com")
+        tp = data_dict.get_deaths_for_period(4)
+        self.assertEqual(tp[0][0], 'AL')
+        self.assertEqual(tp[0][3], 27)
+
+        tm = data_dict.get_max_deaths()
+        self.assertEqual(tm[0][0], 'AL')
+        self.assertEqual(tm[0][3], 150)
         
+        tst = data_dict.get_state_totals()
+        self.assertEqual(tst[0][0], 'AL')
+        self.assertEqual(tst[0][3], 300)
+        
+        ts = data_dict.get_state_data("CO")
+        self.assertEqual(ts.state_data[3], 27)
+        self.assertEqual(ts.state_data[7], 300)
         
 
