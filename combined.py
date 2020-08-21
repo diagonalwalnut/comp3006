@@ -30,7 +30,6 @@ def plot_data(x: list, y: list, sort_order, period):
 
     plt.show()
 
-
 def group_counties_to_states(period, states):
     cases = StateCountyData()
     cases_sorted = cases.sort_by_state()

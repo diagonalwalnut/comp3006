@@ -2,14 +2,11 @@
 cases.csv
 covid_data.csv
 covid_log.log
-deaths.csv
 from_object.csv
-population.csv
 autompg2.log
 output.csv
 output.txt
 covid.log
-covid.data.txt
 Kuralt_program.zip
 __pycache__/covid_cases.cpython-38.pyc
 __pycache__/covid_deaths.cpython-38.pyc
