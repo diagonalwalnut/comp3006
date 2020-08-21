@@ -89,6 +89,23 @@ class StateCovidData:
         if not test_flag:
             self._load_data(data_file_name)
 
+    def __repr__(self) -> str:
+        """
+        Returns a string representaion of an instantiation of StateCovid
+        """
+        rtn_str = ""
+        for key, value in self.data.items():
+            rtn_str = rtn_str + repr(value) + "\n"
+
+        return rtn_str
+
+    def __str__(self) -> str:
+        rtn_str = ""
+        for key, value in self.data.items():
+            rtn_str = rtn_str + str(value) + "\n"
+
+        return rtn_str
+
     def add_state_data(self, state_data: StateCovid):
         self.data[state_data.state] = state_data
 
@@ -203,7 +220,7 @@ class StateCovidData:
                         self.data[row["State"]] = state_data
                         previous_value = int(row[date_key])
 
-    def _get_populations(self, pop_file_name):
+    def _get_populations(self, pop_file_name) -> dict:
         if not os.path.exists(pop_file_name):
             pop_url = "https://usafactsstatic.blob.core.windows.net/" + \
                       "public/data/covid-19/" + \
@@ -214,14 +231,12 @@ class StateCovidData:
 
         with open(pop_file_name, "r", encoding="utf-8") as data_file:
             reader = csv.DictReader(data_file)
-
             for p in reader:
                 if p["State"] in state_totals.keys():
                     state_totals[p["State"]] += int(p["population"])
                     continue
 
                 state_totals[p["State"]] = int(p["population"])
-
         return state_totals
     
     def _get_median_age(self, age_file_name):
@@ -235,10 +250,10 @@ class StateCovidData:
 
             for p in reader:
                 try:
-                    state_median[p["State"]] = p["Median"]
+                    state_median[p["State"]] = float(p["Median"])
                 except KeyError as k:
                     logging.debug(f"_get_median_age: {k}")
-                    state_median[p["\ufeffState"]] = p["Median"]
+                    state_median[p["\ufeffState"]] = float(p["Median"])
                 
         return state_median
 

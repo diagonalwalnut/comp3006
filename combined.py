@@ -9,20 +9,22 @@ from covid_deaths import StateCovidData, StateCovid
 from covid_cases import StateCountyData, StateCounty
 
 def plot_data(x: list, y: list, sort_order, period):
-
     plt.scatter(x, y)
     plt.xticks(rotation=90)
 
+    if period is None:
+        period = "March - July"
+
     if sort_order == 'population':
-        plt.title(f'Death rates by state for {period}/2020')
+        plt.title(f'Death rates by state for {period}-2020')
         plt.xlabel('States in order of increasing population')
         plt.ylabel('Ratio of deaths to cases')
     elif sort_order == 'median_age':
-        plt.title(f'Death rates by state for {period}/2020')
+        plt.title(f'Death rates by state for {period}-2020')
         plt.xlabel('States in order of increasing median age')
         plt.ylabel('Ratio of deaths to cases')
     else:
-        plt.title(f'Death rates by state for {period}/2020')
+        plt.title(f'Death rates by state for {period}-2020')
         plt.xlabel('States in alphabetical order')
         plt.ylabel('Ratio of deaths to cases')
 
@@ -38,7 +40,6 @@ def group_counties_to_states(period):
     period_as_month = month_dict[str(period)]
 
     cases_dict = defaultdict(list)
-    # pop_dict = defaultdict(list)
 
     for i in cases_sorted:
         if i.month == period_as_month:
@@ -48,7 +49,6 @@ def group_counties_to_states(period):
                 continue
 
             cases_dict[i.state] = cases_dict[i.state] + i.case_num
-            # pop_dict[i.state] = pop_dict[i.state] + i.pop
 
     return cases_dict
 

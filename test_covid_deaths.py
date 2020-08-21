@@ -116,3 +116,28 @@ class TestStateCovidData(unittest.TestCase):
 
         with self.assertRaises(KeyError):
             data_dict.data["NY"]
+    
+    def test_get_death_data(self):
+        data_dict = StateCovidData("no_file.txt", True)
+        data_dict._get_covid_data("test_deaths.csv", "http://google.com")
+
+        co_str = "State: AL, Population: 0, Median Age: 0, State Data: {3: 3, 4: 27, 5: 30, 6: 90, 7: 150}"
+    
+        self.assertEqual(str(data_dict.data["AL"]), co_str)
+
+    def test_get_population(self):
+        data_dict = StateCovidData("no_file.txt", True)
+        pop_test = data_dict._get_populations("test_population.csv")
+
+        self.assertEqual(pop_test["AL"], 400)
+        self.assertEqual(pop_test["CO"], 3001)
+    
+    def test_get_median_age(self):
+        data_dict = StateCovidData("no_file.txt", True)
+        age_test = data_dict._get_median_age("state_median_age.csv")
+        
+        self.assertEqual(age_test["CO"], 37.1)
+        self.assertEqual(age_test["TX"], 35)
+        
+        
+
