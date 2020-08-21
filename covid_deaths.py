@@ -468,6 +468,12 @@ def main():
                         help="Command to print")
 
     parser.add_argument("-l", "--location", dest="state",
+                        choices = ['HI','AK','WA','OR','CA','NV','ID','UT',
+                        'AZ','MT','WY','CO','NM','ND','SD','NE','KS','OK',
+                        'TX','MN','IA','MO','AR','LA','WI','MI','IL','IN',
+                        'KY','TN','MS','AL','GA','FL','SC','NC','VA','MD',
+                        'DE','DC','WV','OH','PA','NJ','NY','CT','RI','MA',
+                        'VT','NH','ME'],
                         type=str, help="Two letter state code, e.g., TX or DC.")
 
     parser.add_argument("-s", "--sort", dest="sort_order",
